@@ -167,7 +167,6 @@ void loop() {
     } else {
       Gamepad.press(2);  
     }
-
   }
 
   if(button2.isReleased()) {
@@ -212,7 +211,6 @@ void loop() {
           leds[LED_X_DIR] = NORMAL_DIRECTION_COLOR;
         }
         outputDebugLine("Button 3 shortpress detected");
-
       }
       FastLED.show();
       outputDebug("New X combined multiplier: ");
@@ -255,7 +253,6 @@ void loop() {
           leds[LED_Y_DIR] = NORMAL_DIRECTION_COLOR;
         }
         outputDebugLine("Button 4 shortpress detected");
-
       }
       FastLED.show();
       outputDebug("New Y combined multiplier: ");
@@ -316,7 +313,6 @@ void loop() {
   if(mode == GAMEPAD_MODE){
     Gamepad.write();
   }
-
 }
 
 void ISR_encoderXChange() {
