@@ -6,12 +6,21 @@
 
 #define DEBUG 0
 
-#if DEBUG==1
+#if DEBUG==2
+#define outputDebug2(x); Serial.print(x);
+#define outputDebugLine2(x); Serial.println(x);
 #define outputDebug(x); Serial.print(x);
 #define outputDebugLine(x); Serial.println(x);
+#elif DEBUG==1
+#define outputDebug(x); Serial.print(x);
+#define outputDebugLine(x); Serial.println(x);
+#define outputDebug2(x); 
+#define outputDebugLine2(x); 
 #else
 #define outputDebug(x); 
 #define outputDebugLine(x); 
+#define outputDebug2(x); 
+#define outputDebugLine2(x); 
 #endif
 
 #define EncX_PHASE_A_PIN 10  //Green
@@ -26,12 +35,6 @@
 
 #define MODE_SELECT_PIN 2
 
-#define DIRECTION_CW 0   // clockwise direction
-#define DIRECTION_CCW 1  // counter-clockwise direction
-
-#define GAMEPAD_MODE 0
-#define MOUSE_MODE 1
-
 #define LED_PIN 1
 #define LED_NUMPIXELS 4 
 #define LED_BRIGHTNESS 32 //0-255
@@ -41,7 +44,6 @@
 #define LED_Y_SPEED 2
 
 #define SPEED_1_COLOR CRGB::DarkRed
-
 #define SPEED_2_COLOR CRGB::Yellow
 #define SPEED_3_COLOR CRGB::DarkGreen
 #define NORMAL_DIRECTION_COLOR CRGB::DarkGreen
@@ -49,6 +51,12 @@
 
 #define shortPress 250 
 #define longPress 1000
+
+#define DIRECTION_CW 0   // clockwise direction
+#define DIRECTION_CCW 1  // counter-clockwise direction
+
+#define GAMEPAD_MODE 0
+#define MOUSE_MODE 1
 
 // Define the array of leds
 CRGB leds[LED_NUMPIXELS];
@@ -62,6 +70,8 @@ int mode = MOUSE_MODE;
 
 int stepMultiplierX = 2;
 int stepMultiplierY = 2;
+int dirMultiplierX = 1;
+int dirMultiplierY = 1;
 const int mouseStepBase = 1;
 const int gamepadStepBase = 50;
 const int debounce_time = 10;
@@ -142,6 +152,7 @@ void loop() {
   }
 
   if(button1.isReleased()) {
+    outputDebugLine("Button 1 is released");
     if(mode==MOUSE_MODE) {
       Mouse.release(MOUSE_LEFT);
     } else {
@@ -160,6 +171,7 @@ void loop() {
   }
 
   if(button2.isReleased()) {
+    outputDebugLine("Button 2 is released");
     if(mode==MOUSE_MODE) {
       Mouse.release(MOUSE_RIGHT);
     } else {
@@ -169,10 +181,12 @@ void loop() {
 
   if(button3.isPressed()) {
     button3PressedTime = millis();
+    outputDebugLine("Button 3 is pressed");
   }
 
   if(button3.isReleased()) {
     button3PressedDuration = millis() - button3PressedTime;
+    outputDebugLine("Button 3 is released");
     if(button3PressedDuration > shortPress) {
       if(button3PressedDuration > longPress) {
         //Long press - change speed
@@ -188,25 +202,34 @@ void loop() {
             leds[LED_X_SPEED] = SPEED_3_COLOR;
             break;
         }
+        outputDebugLine("Button 3 longpress detected");
       } else {
         //Short press - reverse direction
-        stepMultiplierX *= -1;
-        if(stepMultiplierX < 0) {
+        dirMultiplierX *= -1;
+        if(dirMultiplierX < 0) {
           leds[LED_X_DIR] = REVERSE_DIRECTION_COLOR;
         } else {
           leds[LED_X_DIR] = NORMAL_DIRECTION_COLOR;
         }
+        outputDebugLine("Button 3 shortpress detected");
+
       }
       FastLED.show();
-    } 
+      outputDebug("New X combined multiplier: ");
+      outputDebugLine(dirMultiplierX * stepMultiplierX);
+    } else {
+      outputDebugLine("Button press 3 Ignored");
+    }
   }  
 
   if(button4.isPressed()) {
     button4PressedTime = millis();
+    outputDebugLine("Button 4 is pressed");
   }
 
   if(button4.isReleased()) {
     button4PressedDuration = millis() - button4PressedTime;
+    outputDebugLine("Button 4 is released");
     if(button4PressedDuration > shortPress) {
       if(button4PressedDuration > longPress) {
         //Long press - change speed
@@ -222,33 +245,40 @@ void loop() {
             leds[LED_Y_SPEED] = SPEED_3_COLOR;
             break;
         }
+        outputDebugLine("Button 4 longpress detected");
       } else {
         //Short press - reverse direction
-        stepMultiplierY *= -1;
-        if(stepMultiplierY < 0) {
+        dirMultiplierY *= -1;
+        if(dirMultiplierY < 0) {
           leds[LED_Y_DIR] = REVERSE_DIRECTION_COLOR;
         } else {
           leds[LED_Y_DIR] = NORMAL_DIRECTION_COLOR;
         }
+        outputDebugLine("Button 4 shortpress detected");
+
       }
       FastLED.show();
-    } 
+      outputDebug("New Y combined multiplier: ");
+      outputDebugLine(dirMultiplierY * stepMultiplierY);
+    } else {
+      outputDebugLine("Button press 4 Ignored");
+    }
   }  
 
   if (prev_counterX != counterX) {
-    outputDebug("DIRECTION X: ");
+    outputDebug2("DIRECTION X: ");
     if (directionX == DIRECTION_CW) {
-      outputDebug("Clockwise");
+      outputDebug2("Clockwise");
     } else {
-      outputDebug("Counter-clockwise");
+      outputDebug2("Counter-clockwise");
     }
-    outputDebug(" | COUNTER X: ");
-    outputDebugLine(counterX);
+    outputDebug2(" | COUNTER X: ");
+    outputDebugLine2(counterX);
     if(mode == MOUSE_MODE) {
-      Mouse.move(stepMultiplierX*mouseStepBase*(counterX-prev_counterX),0,0);
+      Mouse.move(dirMultiplierX*stepMultiplierX*mouseStepBase*(counterX-prev_counterX),0,0);
     } else {
       //counter1 = prev_counter1+stepMultiplier*gamepadStepBase*(counter1-prev_counter1);
-      gamepadXpos += stepMultiplierX*gamepadStepBase*(counterX-prev_counterX);
+      gamepadXpos += dirMultiplierX*stepMultiplierX*gamepadStepBase*(counterX-prev_counterX);
       if (gamepadXpos<gamepadMinval) {
         gamepadXpos=gamepadMinval;
       } else if (gamepadXpos > gamepadMaxval) {
@@ -260,19 +290,19 @@ void loop() {
   }
 
   if (prev_counterY != counterY) {
-    outputDebug("DIRECTION Y: ");
+    outputDebug2("DIRECTION Y: ");
     if (directionY == DIRECTION_CW) {
-      outputDebug("Clockwise");
+      outputDebug2("Clockwise");
     } else {
-      outputDebug("Counter-clockwise");
+      outputDebug2("Counter-clockwise");
     }
-    outputDebug(" | COUNTER Y: ");
-    outputDebugLine(counterY);
+    outputDebug2(" | COUNTER Y: ");
+    outputDebugLine2(counterY);
 
     if(mode == MOUSE_MODE) {
-      Mouse.move(0,stepMultiplierY*mouseStepBase*(counterY-prev_counterY),0);
+      Mouse.move(0,dirMultiplierY*stepMultiplierY*mouseStepBase*(counterY-prev_counterY),0);
     } else {
-      gamepadYpos += stepMultiplierY*gamepadStepBase*(counterY-prev_counterY);
+      gamepadYpos += dirMultiplierY*stepMultiplierY*gamepadStepBase*(counterY-prev_counterY);
       if (gamepadYpos<gamepadMinval) {
         gamepadYpos=gamepadMinval;
       } else if (gamepadYpos > gamepadMaxval) {
