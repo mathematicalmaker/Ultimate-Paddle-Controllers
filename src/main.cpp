@@ -4,6 +4,9 @@
 #include <HID-Project.h>
 #include <FastLED.h>
 
+// Debug level 2 = all messages
+// Debug level 1 = some messages
+// Debug level 2 = no messages
 #define DEBUG 0
 
 #if DEBUG==2
@@ -34,6 +37,7 @@
 #define EncY_BUTTON2_PIN 6
 
 #define MODE_SELECT_PIN 2
+#define GAMEPAD_CENTER_PIN 0
 
 #define LED_PIN 1
 #define LED_NUMPIXELS 4 
@@ -61,10 +65,11 @@
 // Define the array of leds
 CRGB leds[LED_NUMPIXELS];
 
-ezButton button1(EncX_BUTTON1_PIN);
-ezButton button2(EncY_BUTTON1_PIN);
-ezButton button3(EncX_BUTTON2_PIN);
-ezButton button4(EncY_BUTTON2_PIN);
+ezButton buttonX1(EncX_BUTTON1_PIN);
+ezButton buttonY1(EncY_BUTTON1_PIN);
+ezButton buttonX2(EncX_BUTTON2_PIN);
+ezButton buttonY2(EncY_BUTTON2_PIN);
+ezButton buttonCenter(GAMEPAD_CENTER_PIN);
 
 int mode = MOUSE_MODE;
 
@@ -88,10 +93,10 @@ int gamepadYpos = 0;
 const int gamepadMinval=-32768;
 const int gamepadMaxval=32767;
 
-unsigned long button3PressedTime = 0;
-unsigned long button4PressedTime = 0;
-long button3PressedDuration;
-long button4PressedDuration;
+unsigned long buttonX2PressedTime = 0;
+unsigned long buttonY2PressedTime = 0;
+long buttonX2PressedDuration;
+long buttonY2PressedDuration;
 
 void ISR_encoderXChange();
 void ISR_encoderYChange();
@@ -114,10 +119,13 @@ void setup() {
   pinMode(EncX_PHASE_B_PIN, INPUT_PULLUP);
   pinMode(EncY_PHASE_A_PIN, INPUT_PULLUP);
   pinMode(EncY_PHASE_B_PIN, INPUT_PULLUP);
-  button1.setDebounceTime(debounce_time);  
-  button2.setDebounceTime(debounce_time);  
-  button3.setDebounceTime(debounce_time);  
-  button4.setDebounceTime(debounce_time);
+
+  // Set debounce for buttons
+  buttonX1.setDebounceTime(debounce_time);  
+  buttonY1.setDebounceTime(debounce_time);  
+  buttonX2.setDebounceTime(debounce_time);  
+  buttonY2.setDebounceTime(debounce_time);
+  buttonCenter.setDebounceTime(debounce_time);
 
   // Initialize status LEDs
   FastLED.addLeds<NEOPIXEL, LED_PIN>(leds, LED_NUMPIXELS);  // GRB ordering is assumed
@@ -137,13 +145,14 @@ void setup() {
 }
 
 void loop() {
-  button1.loop();  
-  button2.loop();  
-  button3.loop();
-  button4.loop();
+  buttonX1.loop();  
+  buttonY1.loop();  
+  buttonX2.loop();
+  buttonY2.loop();
+  buttonCenter.loop();
 
-  if(button1.isPressed()) {   
-    outputDebugLine("Button 1 is pressed");
+  if(buttonX1.isPressed()) {   
+    outputDebugLine("Button X1 is pressed");
     if(mode==MOUSE_MODE) {
       Mouse.press(MOUSE_LEFT);
     } else {
@@ -151,8 +160,8 @@ void loop() {
     }
   }
 
-  if(button1.isReleased()) {
-    outputDebugLine("Button 1 is released");
+  if(buttonX1.isReleased()) {
+    outputDebugLine("Button X1 is released");
     if(mode==MOUSE_MODE) {
       Mouse.release(MOUSE_LEFT);
     } else {
@@ -160,8 +169,8 @@ void loop() {
     }
   }
 
-  if(button2.isPressed()) {
-    outputDebugLine("Button 2 is pressed");
+  if(buttonY1.isPressed()) {
+    outputDebugLine("Button Y1 is pressed");
     if(mode==MOUSE_MODE) {
       Mouse.press(MOUSE_RIGHT);
     } else {
@@ -169,8 +178,8 @@ void loop() {
     }
   }
 
-  if(button2.isReleased()) {
-    outputDebugLine("Button 2 is released");
+  if(buttonY1.isReleased()) {
+    outputDebugLine("Button Y1 is released");
     if(mode==MOUSE_MODE) {
       Mouse.release(MOUSE_RIGHT);
     } else {
@@ -178,16 +187,16 @@ void loop() {
     }
   }
 
-  if(button3.isPressed()) {
-    button3PressedTime = millis();
-    outputDebugLine("Button 3 is pressed");
+  if(buttonX2.isPressed()) {
+    buttonX2PressedTime = millis();
+    outputDebugLine("Button X2 is pressed");
   }
 
-  if(button3.isReleased()) {
-    button3PressedDuration = millis() - button3PressedTime;
-    outputDebugLine("Button 3 is released");
-    if(button3PressedDuration > shortPress) {
-      if(button3PressedDuration > longPress) {
+  if(buttonX2.isReleased()) {
+    buttonX2PressedDuration = millis() - buttonX2PressedTime;
+    outputDebugLine("Button X2 is released");
+    if(buttonX2PressedDuration > shortPress) {
+      if(buttonX2PressedDuration > longPress) {
         //Long press - change speed
         stepMultiplierX = (stepMultiplierX%3) + 1;
         switch(stepMultiplierX) {
@@ -201,7 +210,7 @@ void loop() {
             leds[LED_X_SPEED] = SPEED_3_COLOR;
             break;
         }
-        outputDebugLine("Button 3 longpress detected");
+        outputDebugLine("Button X2 longpress detected");
       } else {
         //Short press - reverse direction
         dirMultiplierX *= -1;
@@ -210,26 +219,26 @@ void loop() {
         } else {
           leds[LED_X_DIR] = NORMAL_DIRECTION_COLOR;
         }
-        outputDebugLine("Button 3 shortpress detected");
+        outputDebugLine("Button X2 shortpress detected");
       }
       FastLED.show();
       outputDebug("New X combined multiplier: ");
       outputDebugLine(dirMultiplierX * stepMultiplierX);
     } else {
-      outputDebugLine("Button press 3 Ignored");
+      outputDebugLine("Button press X2 Ignored (< ShortPress)");
     }
   }  
 
-  if(button4.isPressed()) {
-    button4PressedTime = millis();
-    outputDebugLine("Button 4 is pressed");
+  if(buttonY2.isPressed()) {
+    buttonY2PressedTime = millis();
+    outputDebugLine("Button Y2 is pressed");
   }
 
-  if(button4.isReleased()) {
-    button4PressedDuration = millis() - button4PressedTime;
-    outputDebugLine("Button 4 is released");
-    if(button4PressedDuration > shortPress) {
-      if(button4PressedDuration > longPress) {
+  if(buttonY2.isReleased()) {
+    buttonY2PressedDuration = millis() - buttonY2PressedTime;
+    outputDebugLine("Button Y2 is released");
+    if(buttonY2PressedDuration > shortPress) {
+      if(buttonY2PressedDuration > longPress) {
         //Long press - change speed
         stepMultiplierY = (stepMultiplierY%3) + 1;
         switch(stepMultiplierY) {
@@ -243,7 +252,7 @@ void loop() {
             leds[LED_Y_SPEED] = SPEED_3_COLOR;
             break;
         }
-        outputDebugLine("Button 4 longpress detected");
+        outputDebugLine("Button Y2 longpress detected");
       } else {
         //Short press - reverse direction
         dirMultiplierY *= -1;
@@ -252,15 +261,23 @@ void loop() {
         } else {
           leds[LED_Y_DIR] = NORMAL_DIRECTION_COLOR;
         }
-        outputDebugLine("Button 4 shortpress detected");
+        outputDebugLine("Button Y2 shortpress detected");
       }
       FastLED.show();
       outputDebug("New Y combined multiplier: ");
       outputDebugLine(dirMultiplierY * stepMultiplierY);
     } else {
-      outputDebugLine("Button press 4 Ignored");
+      outputDebugLine("Button press Y2 Ignored (<ShortPress)");
     }
-  }  
+  }
+
+  if(buttonCenter.isPressed()) {
+    outputDebugLine("Gamepad center button is pressed");
+    if(mode==GAMEPAD_MODE) {
+      gamepadXpos = 0;
+      gamepadYpos = 0;
+    } 
+  }
 
   if (prev_counterX != counterX) {
     outputDebug2("DIRECTION X: ");
