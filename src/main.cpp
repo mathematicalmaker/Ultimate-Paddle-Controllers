@@ -7,7 +7,7 @@
 // Debug level 2 = all messages
 // Debug level 1 = some messages
 // Debug level 2 = no messages
-#define DEBUG 1
+#define DEBUG 0
 
 #if DEBUG==2
 #define outputDebug2(x); Serial.print(x);
