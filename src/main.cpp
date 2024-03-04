@@ -7,7 +7,7 @@
 // Debug level 2 = all messages
 // Debug level 1 = some messages
 // Debug level 2 = no messages
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG==2
 #define outputDebug2(x); Serial.print(x);
@@ -276,6 +276,9 @@ void loop() {
     if(mode==GAMEPAD_MODE) {
       gamepadXpos = 0;
       gamepadYpos = 0;
+      Gamepad.xAxis(gamepadXpos);
+      Gamepad.yAxis(gamepadYpos);
+      outputDebugLine("Gamepad centered");
     } 
   }
 
