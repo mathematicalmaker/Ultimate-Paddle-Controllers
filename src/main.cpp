@@ -28,22 +28,22 @@
 
 #define EncX_PHASE_A_PIN 10  //Green
 #define EncX_PHASE_B_PIN 9   //White
-#define EncX_BUTTON1_PIN 8
-#define EncX_BUTTON2_PIN 7
+#define EncX_BUTTON1_PIN 8   //Fire button
+#define EncX_BUTTON2_PIN 7   //Settings button
 
 #define EncY_PHASE_A_PIN 3  //Green
-#define EncY_PHASE_B_PIN 4   //White
-#define EncY_BUTTON1_PIN 5
-#define EncY_BUTTON2_PIN 6
+#define EncY_PHASE_B_PIN 4  //White
+#define EncY_BUTTON1_PIN 5  //Fire button
+#define EncY_BUTTON2_PIN 6  //Settings button
 
-#define MODE_SELECT_PIN 2
-#define GAMEPAD_CENTER_PIN 0
+#define MODE_SELECT_PIN 2    //Switch for Mouse<->Joystick mode
+#define GAMEPAD_CENTER_PIN 0 //Button to center joystick for apps that need it
 
-#define LED_PIN 1
+#define LED_PIN 1         //WS2812B LEDs are connected here
 #define LED_NUMPIXELS 4 
-#define LED_BRIGHTNESS 32 //0-255
-#define LED_X_DIR 0
-#define LED_X_SPEED 3
+#define LED_BRIGHTNESS 32 //0-255 (Not perceived linearly by humans)
+#define LED_X_DIR 0       //LEDs are numbered 0-3, each paddle has a direction LED
+#define LED_X_SPEED 3     //and a speed LED
 #define LED_Y_DIR 1
 #define LED_Y_SPEED 2
 
@@ -53,11 +53,11 @@
 #define NORMAL_DIRECTION_COLOR CRGB::DarkGreen
 #define REVERSE_DIRECTION_COLOR CRGB::DarkRed
 
-#define shortPress 250 
-#define longPress 1000
+#define shortPress 250  //Short press of settings button to change direction (ms)
+#define longPress 1000  //Long press of settings button to change speed (ms) 
 
-#define DIRECTION_CW 0   // clockwise direction
-#define DIRECTION_CCW 1  // counter-clockwise direction
+#define DIRECTION_CW 0   // clockwise direction (used for debugging)
+#define DIRECTION_CCW 1  // counter-clockwise direction (used for debugging)
 
 #define GAMEPAD_MODE 0
 #define MOUSE_MODE 1
@@ -65,6 +65,7 @@
 // Define the array of leds
 CRGB leds[LED_NUMPIXELS];
 
+// Button declarations
 ezButton buttonX1(EncX_BUTTON1_PIN);
 ezButton buttonY1(EncY_BUTTON1_PIN);
 ezButton buttonX2(EncX_BUTTON2_PIN);
@@ -81,29 +82,37 @@ const int mouseStepBase = 1;
 const int gamepadStepBase = 50;
 const int debounce_time = 10;
 
+// Variables changed by ISR need to be volatile
 volatile int counterX = 0;
 volatile int directionX = DIRECTION_CW;
 volatile int counterY = 0;
 volatile int directionY = DIRECTION_CW;
 
+// Tracking for encoder changes and gamepad virtual stick position
 int prev_counterX;
 int prev_counterY;
 int gamepadXpos = 0;
 int gamepadYpos = 0;
+
+// Limits are defined by HID-Project
 const int gamepadMinval=-32768;
 const int gamepadMaxval=32767;
 
+// Tracking variables for long/short presses of settings buttons
 unsigned long buttonX2PressedTime = 0;
 unsigned long buttonY2PressedTime = 0;
 long buttonX2PressedDuration;
 long buttonY2PressedDuration;
 
+// Interrupt Service Routine declarations
 void ISR_encoderXChange();
 void ISR_encoderYChange();
 
 void setup() {
   Serial.begin(115200);
   pinMode(MODE_SELECT_PIN, INPUT_PULLUP);
+
+  // Set the mode based on the mode select pin
   if (digitalRead(MODE_SELECT_PIN) == LOW ) {
     outputDebugLine("Gamepad Mode");
     mode=GAMEPAD_MODE;
@@ -114,7 +123,7 @@ void setup() {
     Mouse.begin();
   }
 
-  // configure encoder pins as inputs
+  // configure encoder pins as inputs -- pullup is required!
   pinMode(EncX_PHASE_A_PIN, INPUT_PULLUP);
   pinMode(EncX_PHASE_B_PIN, INPUT_PULLUP);
   pinMode(EncY_PHASE_A_PIN, INPUT_PULLUP);
@@ -140,17 +149,20 @@ void setup() {
   // call ISR_encoderChange() when Phase A pin changes from LOW to HIGH
   attachInterrupt(digitalPinToInterrupt(EncX_PHASE_A_PIN), ISR_encoderXChange, RISING);
   attachInterrupt(digitalPinToInterrupt(EncY_PHASE_A_PIN), ISR_encoderYChange, RISING);
-  // Reboot on mode change
+  // Reboot on mode change using NVIC_SystemReset
+  // This works with the Seeeduino XIAO SAMD21, others may need a different function
   attachInterrupt(digitalPinToInterrupt(MODE_SELECT_PIN), NVIC_SystemReset, CHANGE);
 }
 
 void loop() {
+  // Each button needs its loop function called per ezButton
   buttonX1.loop();  
   buttonY1.loop();  
   buttonX2.loop();
   buttonY2.loop();
   buttonCenter.loop();
-
+  
+  // Check each button
   if(buttonX1.isPressed()) {   
     outputDebugLine("Button X1 is pressed");
     if(mode==MOUSE_MODE) {
@@ -282,6 +294,7 @@ void loop() {
     } 
   }
 
+  //Check to see if encoder counter has changed (via ISR)
   if (prev_counterX != counterX) {
     outputDebug2("DIRECTION X: ");
     if (directionX == DIRECTION_CW) {
@@ -292,10 +305,12 @@ void loop() {
     outputDebug2(" | COUNTER X: ");
     outputDebugLine2(counterX);
     if(mode == MOUSE_MODE) {
+      // Move the mouse
       Mouse.move(dirMultiplierX*stepMultiplierX*mouseStepBase*(counterX-prev_counterX),0,0);
     } else {
-      //counter1 = prev_counter1+stepMultiplier*gamepadStepBase*(counter1-prev_counter1);
+      // Move the joystick position
       gamepadXpos += dirMultiplierX*stepMultiplierX*gamepadStepBase*(counterX-prev_counterX);
+      // Keep it within the limits
       if (gamepadXpos<gamepadMinval) {
         gamepadXpos=gamepadMinval;
       } else if (gamepadXpos > gamepadMaxval) {
@@ -306,6 +321,7 @@ void loop() {
     prev_counterX = counterX;
   }
 
+  //Check to see if encoder counter has changed (via ISR)
   if (prev_counterY != counterY) {
     outputDebug2("DIRECTION Y: ");
     if (directionY == DIRECTION_CW) {
@@ -317,9 +333,12 @@ void loop() {
     outputDebugLine2(counterY);
 
     if(mode == MOUSE_MODE) {
+      // Move the mouse
       Mouse.move(0,dirMultiplierY*stepMultiplierY*mouseStepBase*(counterY-prev_counterY),0);
     } else {
+      // Move the joystick posistion
       gamepadYpos += dirMultiplierY*stepMultiplierY*gamepadStepBase*(counterY-prev_counterY);
+      // Keep it within the limits
       if (gamepadYpos<gamepadMinval) {
         gamepadYpos=gamepadMinval;
       } else if (gamepadYpos > gamepadMaxval) {
@@ -330,12 +349,14 @@ void loop() {
     prev_counterY = counterY;
   }
 
+  //Gamepad (joysitck) position doesn't actually get updated until write()
   if(mode == GAMEPAD_MODE){
     Gamepad.write();
   }
 }
 
 void ISR_encoderXChange() {
+  // Phase A has gone from low to high, so we only need to check Phase B
   if (digitalRead(EncX_PHASE_B_PIN) == HIGH) {
     // the encoder is rotating in counter-clockwise direction => decrease the counter
     counterX--;
@@ -348,6 +369,7 @@ void ISR_encoderXChange() {
 }
 
 void ISR_encoderYChange() {
+  // Phase A has gone from low to high, so we only need to check Phase B
   if (digitalRead(EncY_PHASE_B_PIN) == HIGH) {
     // the encoder is rotating in counter-clockwise direction => decrease the counter
     counterY--;
