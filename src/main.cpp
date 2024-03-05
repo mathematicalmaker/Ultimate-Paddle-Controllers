@@ -41,7 +41,7 @@
 
 #define LED_PIN 1         //WS2812B LEDs are connected here
 #define LED_NUMPIXELS 4 
-#define LED_BRIGHTNESS 32 //0-255 (Not perceived linearly by humans)
+#define LED_BRIGHTNESS 8  //0-255 (Not perceived linearly)
 #define LED_X_DIR 0       //LEDs are numbered 0-3, each paddle has a direction LED
 #define LED_X_SPEED 3     //and a speed LED
 #define LED_Y_DIR 1
@@ -61,6 +61,7 @@
 
 #define GAMEPAD_MODE 0
 #define MOUSE_MODE 1
+int mode = MOUSE_MODE;
 
 // Define the array of leds
 CRGB leds[LED_NUMPIXELS];
@@ -71,16 +72,17 @@ ezButton buttonY1(EncY_BUTTON1_PIN);
 ezButton buttonX2(EncX_BUTTON2_PIN);
 ezButton buttonY2(EncY_BUTTON2_PIN);
 ezButton buttonCenter(GAMEPAD_CENTER_PIN);
-
-int mode = MOUSE_MODE;
-
-int stepMultiplierX = 2;
-int stepMultiplierY = 2;
-int dirMultiplierX = 1;
-int dirMultiplierY = 1;
-const int mouseStepBase = 1;
-const int gamepadStepBase = 50;
 const int debounce_time = 10;
+
+// Multipliers for changing direction and speed
+int stepMultiplierX = 2;  // Cycles 1-3: 1=slow, 2=medium, 3=fast
+int stepMultiplierY = 2;  // Cycles 1-3: 1=slow, 2=medium, 3=fast
+int dirMultiplierX = 1;   // Direction is +/-1 for normal/reverse
+int dirMultiplierY = 1;   // Direction is +/-1 for normal/reverse
+
+// These values can be changed to affect "base" sensitivity
+const int mouseStepBase = 1;    // This gets multiplied by the step multiplier
+const int gamepadStepBase = 50; // This gets multiplied by the step multiplier
 
 // Variables changed by ISR need to be volatile
 volatile int counterX = 0;
@@ -149,6 +151,7 @@ void setup() {
   // call ISR_encoderChange() when Phase A pin changes from LOW to HIGH
   attachInterrupt(digitalPinToInterrupt(EncX_PHASE_A_PIN), ISR_encoderXChange, RISING);
   attachInterrupt(digitalPinToInterrupt(EncY_PHASE_A_PIN), ISR_encoderYChange, RISING);
+  
   // Reboot on mode change using NVIC_SystemReset
   // This works with the Seeeduino XIAO SAMD21, others may need a different function
   attachInterrupt(digitalPinToInterrupt(MODE_SELECT_PIN), NVIC_SystemReset, CHANGE);
