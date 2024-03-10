@@ -6,7 +6,7 @@
 
 // Debug level 2 = all messages
 // Debug level 1 = some messages
-// Debug level 2 = no messages
+// Debug level 0 = no messages
 #define DEBUG 0
 
 #if DEBUG==2
