@@ -82,7 +82,7 @@ int dirMultiplierY = 1;   // Direction is +/-1 for normal/reverse
 
 // These values can be changed to affect "base" sensitivity
 const int mouseStepBase = 1;    // This gets multiplied by the step multiplier
-const int gamepadStepBase = 50; // This gets multiplied by the step multiplier
+const int gamepadStepBase = 40; // This gets multiplied by the step multiplier
 
 // Variables changed by ISR need to be volatile
 volatile int counterX = 0;
