@@ -41,22 +41,22 @@
 
 #define LED_PIN 1         //WS2812B LEDs are connected here
 #define LED_NUMPIXELS 4 
-#define LED_BRIGHTNESS 8  //0-255 (Not perceived linearly)
-#define LED_X_DIR 0       //LEDs are numbered 0-3, each paddle has a direction LED
-#define LED_X_SPEED 3     //and a speed LED
-#define LED_Y_DIR 1
-#define LED_Y_SPEED 2
+#define LED_BRIGHTNESS 16  //0-255 (Not perceived linearly)
+#define LED_X_DIR   0      //LEDs are numbered 0-3, each paddle has a direction LED
+#define LED_X_SPEED 1      //and a speed LED
+#define LED_Y_DIR   2
+#define LED_Y_SPEED 3
 
-#define SPEED_1_COLOR CRGB::DarkRed
-#define SPEED_2_COLOR CRGB::Yellow
-#define SPEED_3_COLOR CRGB::DarkGreen
+#define SPEED_1_COLOR CRGB::Red
+#define SPEED_2_COLOR CRGB::Green
+#define SPEED_3_COLOR CRGB::Blue
 #define NORMAL_DIRECTION_COLOR CRGB::DarkGreen
 #define REVERSE_DIRECTION_COLOR CRGB::DarkRed
 
 #define shortPress 250  //Short press of settings button to change direction (ms)
 #define longPress 1000  //Long press of settings button to change speed (ms) 
 
-#define DIRECTION_CW 0   // clockwise direction (used for debugging)
+#define DIRECTION_CW  0   // clockwise direction (used for debugging)
 #define DIRECTION_CCW 1  // counter-clockwise direction (used for debugging)
 
 #define GAMEPAD_MODE 0
