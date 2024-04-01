@@ -47,9 +47,9 @@
 #define LED_Y_DIR   2
 #define LED_Y_SPEED 3
 
-#define SPEED_1_COLOR CRGB::Red
-#define SPEED_2_COLOR CRGB::Green
-#define SPEED_3_COLOR CRGB::Blue
+#define SPEED_1_COLOR CRGB::DarkRed
+#define SPEED_2_COLOR CRGB::Yellow
+#define SPEED_3_COLOR CRGB::DarkGreen
 #define NORMAL_DIRECTION_COLOR CRGB::DarkGreen
 #define REVERSE_DIRECTION_COLOR CRGB::DarkRed
 
