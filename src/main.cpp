@@ -53,21 +53,18 @@
 #define NORMAL_DIRECTION_COLOR CRGB::DarkGreen
 #define REVERSE_DIRECTION_COLOR CRGB::DarkRed
 
-#define shortPress 250  //Short press of settings button to change direction (ms)
-#define longPress 1000  //Long press of settings button to change speed (ms) 
-
 #define DIRECTION_CW  0   // clockwise direction (used for debugging)
 #define DIRECTION_CCW 1  // counter-clockwise direction (used for debugging)
 
-#define GAMEPAD_MODE 0
-#define MOUSE_MODE 1
-
-int mode = MOUSE_MODE;
+enum Mode { GAMEPAD, MOUSE };
+Mode mode = MOUSE; // Initialize with MOUSE mode
 
 // Define the array of leds
 CRGB leds[LED_NUMPIXELS];
 
 const int debounce_time = 10;
+const unsigned long shortPress = 60; // Short press of settings button to change direction
+const unsigned long longPress = 500; // Long press of settings button to change speed
 
 // These values can be changed to affect "base" sensitivity
 // Multipliers for changing direction and speed
@@ -94,8 +91,11 @@ struct AxisData {
   ezButton button2;
   // Tracking variables for long/short presses of settings buttons
   unsigned long button2PressedTime;
-  long button2PressedDuration;
-  int gamepadPos; // Gamepad position
+  unsigned long button2PressedDuration;
+  bool button2Pressed;
+  bool longPressTriggered;
+  // Gamepad position for this axis
+  int gamepadPos; 
 };
 
 // Axis data
@@ -111,6 +111,8 @@ AxisData axisX = {
   ezButton(EncX_BUTTON2_PIN),
   0,            // Initialize button2PressedTime
   0,            // Initialize button2PressedDuration
+  false,        // Initialize longPressProcessed
+  false,        // Initialize button2Pressed
   0             // Initialize gamepadPos
 };
 
@@ -126,13 +128,14 @@ AxisData axisY = {
   ezButton(EncY_BUTTON2_PIN),
   0,            // Initialize button2PressedTime
   0,            // Initialize button2PressedDuration
+  false,         // Initialize longPressProcessed
   0             // Initialize gamepadPos
 };
 
 // Function declarations
 void handleButtonPress(ezButton& button, int buttonId, int mouseButton, int gamepadButton);
 void handleSettingsButton(AxisData& axis);
-void handleEncoderChange(AxisData& axis, int& gamepadPos);
+void handleEncoderChange(AxisData& axis, int& gamepadPos, bool isXAxis);
 
 // Interrupt Service Routine declarations
 void ISR_encoderXChange();
@@ -145,11 +148,11 @@ void setup() {
   // Set the mode based on the mode select pin
   if (digitalRead(MODE_SELECT_PIN) == LOW ) {
     outputDebugLine("Gamepad Mode");
-    mode=GAMEPAD_MODE;
+    mode = GAMEPAD;
     Gamepad.begin();
   } else {
     outputDebugLine("Mouse Mode");
-    mode=MOUSE_MODE;
+    mode = MOUSE;
     Mouse.begin();
   }
 
@@ -200,21 +203,19 @@ void loop() {
   handleSettingsButton(axisY);
 
   // Handle center button
-  if (buttonCenter.isPressed() && mode == GAMEPAD_MODE) {
+  if (buttonCenter.isPressed() && mode == GAMEPAD) {
     outputDebugLine("Gamepad center button is pressed");
     axisX.gamepadPos = 0;
     axisY.gamepadPos = 0;
-    Gamepad.xAxis(axisX.gamepadPos);
-    Gamepad.yAxis(axisY.gamepadPos);
     outputDebugLine("Gamepad centered");
   }
 
   // Handle encoder changes
-  handleEncoderChange(axisX, axisX.gamepadPos);
-  handleEncoderChange(axisY, axisY.gamepadPos);
+  handleEncoderChange(axisX, axisX.gamepadPos, true);  // true for X-axis
+  handleEncoderChange(axisY, axisY.gamepadPos, false); // false for Y-axis
 
   // Gamepad write
-  if (mode == GAMEPAD_MODE) {
+  if (mode == GAMEPAD) {
     Gamepad.xAxis(axisX.gamepadPos);
     Gamepad.yAxis(axisY.gamepadPos);
     Gamepad.write();
@@ -224,7 +225,7 @@ void loop() {
 void handleButtonPress(ezButton& button, int buttonId, int mouseButton, int gamepadButton) {
   if (button.isPressed()) {
     outputDebug("Button "); outputDebug(buttonId); outputDebugLine(" is pressed");
-    if (mode == MOUSE_MODE) {
+    if (mode == MOUSE) {
       Mouse.press(mouseButton);
     } else {
       Gamepad.press(gamepadButton);
@@ -232,7 +233,7 @@ void handleButtonPress(ezButton& button, int buttonId, int mouseButton, int game
   }
   if (button.isReleased()) {
     outputDebug("Button "); outputDebug(buttonId); outputDebugLine(" is released");
-    if (mode == MOUSE_MODE) {
+    if (mode == MOUSE) {
       Mouse.release(mouseButton);
     } else {
       Gamepad.release(gamepadButton);
@@ -242,39 +243,51 @@ void handleButtonPress(ezButton& button, int buttonId, int mouseButton, int game
 
 void handleSettingsButton(AxisData& axis) {
   if (axis.button2.isPressed()) {
-    axis.button2PressedTime = millis();
-    outputDebug("Button "); outputDebug(axis.button2Pin); outputDebugLine(" is pressed");
+    if (!axis.button2Pressed) { // First press
+      axis.button2PressedTime = millis();
+      axis.button2Pressed = true;
+      axis.longPressTriggered = false; // Reset long press flag
+      outputDebug("Button "); outputDebug(axis.button2Pin); outputDebugLine(" is pressed");
+    }
+  }
+
+  if (axis.button2Pressed && !axis.longPressTriggered) { 
+    // Calculate duration only if still pressed and long press not triggered
+    axis.button2PressedDuration = millis() - axis.button2PressedTime;
+
+    if (axis.button2PressedDuration > longPress) {
+      // Long press - change speed immediately
+      axis.stepMultiplier = (axis.stepMultiplier % 3) + 1;
+      switch (axis.stepMultiplier) {
+        case 1: leds[axis.speedLedIndex] = SPEED_1_COLOR; break;
+        case 2: leds[axis.speedLedIndex] = SPEED_2_COLOR; break;
+        case 3: leds[axis.speedLedIndex] = SPEED_3_COLOR; break;
+      }
+      FastLED.show();
+      outputDebug("Button "); outputDebug(axis.button2Pin); outputDebugLine(" longpress detected");
+      outputDebug("New combined multiplier: ");
+      outputDebugLine(axis.dirMultiplier * axis.stepMultiplier);
+      axis.longPressTriggered = true; // Set long press flag
+    }
   }
 
   if (axis.button2.isReleased()) {
-    axis.button2PressedDuration = millis() - axis.button2PressedTime;
-    outputDebug("Button "); outputDebug(axis.button2Pin); outputDebugLine(" is released");
-    if (axis.button2PressedDuration > shortPress) {
-      if (axis.button2PressedDuration > longPress) {
-        // Long press - change speed
-        axis.stepMultiplier = (axis.stepMultiplier % 3) + 1;
-        switch (axis.stepMultiplier) {
-          case 1: leds[axis.speedLedIndex] = SPEED_1_COLOR; break;
-          case 2: leds[axis.speedLedIndex] = SPEED_2_COLOR; break;
-          case 3: leds[axis.speedLedIndex] = SPEED_3_COLOR; break;
-        }
-        outputDebug("Button "); outputDebug(axis.button2Pin); outputDebugLine(" longpress detected");
-      } else {
-        // Short press - reverse direction
-        axis.dirMultiplier *= -1;
-        leds[axis.dirLedIndex] = (axis.dirMultiplier < 0) ? REVERSE_DIRECTION_COLOR : NORMAL_DIRECTION_COLOR;
-        outputDebug("Button "); outputDebug(axis.button2Pin); outputDebugLine(" shortpress detected");
-      }
+    if (axis.button2PressedDuration >= shortPress && axis.button2PressedDuration <= longPress && !axis.longPressTriggered) {
+      // Short press - reverse direction
+      axis.dirMultiplier *= -1;
+      leds[axis.dirLedIndex] = (axis.dirMultiplier < 0) ? REVERSE_DIRECTION_COLOR : NORMAL_DIRECTION_COLOR;
       FastLED.show();
+      outputDebug("Button "); outputDebug(axis.button2Pin); outputDebugLine(" shortpress detected");
       outputDebug("New combined multiplier: ");
       outputDebugLine(axis.dirMultiplier * axis.stepMultiplier);
-    } else {
-      outputDebug("Button press Ignored (< ShortPress)");
     }
+    axis.button2Pressed = false; // Reset button pressed flag
+    axis.button2PressedDuration = 0; // Reset duration on release.
+    outputDebug("Button "); outputDebug(axis.button2Pin); outputDebugLine(" is released");
   }
 }
 
-void handleEncoderChange(AxisData& axis, int& gamepadPos) {
+void handleEncoderChange(AxisData& axis, int& gamepadPos, bool isXAxis) {
   if (axis.prevCounter != axis.counter) {
     outputDebug2("DIRECTION: ");
     outputDebug2((axis.direction == DIRECTION_CW) ? "Clockwise" : "Counter-clockwise");
@@ -284,8 +297,8 @@ void handleEncoderChange(AxisData& axis, int& gamepadPos) {
     int delta = axis.counter - axis.prevCounter;
     int moveAmount = axis.dirMultiplier * axis.stepMultiplier * delta;
 
-    if (mode == MOUSE_MODE) {
-      if (axis.speedLedIndex == LED_X_SPEED) {
+    if (mode == MOUSE) {
+      if (isXAxis) {
         Mouse.move(moveAmount * mouseStepBase, 0, 0);
       } else {
         Mouse.move(0, moveAmount * mouseStepBase, 0);
