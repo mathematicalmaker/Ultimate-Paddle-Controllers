@@ -272,7 +272,7 @@ void handleSettingsButton(AxisData& axis) {
   }
 
   if (axis.button2.isReleased()) {
-    if (axis.button2PressedDuration >= shortPress && axis.button2PressedDuration <= longPress && !axis.longPressTriggered) {
+    if (axis.button2PressedDuration >= shortPress && axis.button2PressedDuration <= longPress) {
       // Short press - reverse direction
       axis.dirMultiplier *= -1;
       leds[axis.dirLedIndex] = (axis.dirMultiplier < 0) ? REVERSE_DIRECTION_COLOR : NORMAL_DIRECTION_COLOR;
